@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 data = pd.read_csv('winequality.csv', sep=';')
 
-X = data.drop(columns=['quality'])
+X = data.drop(columns=['quality', 'color'])
 y = data['quality']
 
 neighbors_settings = [10, 50, 100]
