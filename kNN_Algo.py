@@ -1,44 +1,87 @@
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import classification_report, confusion_matrix
+import seaborn as sns
 import matplotlib.pyplot as plt
+from sklearn.neighbors import KNeighborsClassifier
 
-data = pd.read_csv('winequality.csv', sep=';')
+# Read dataset
+data = pd.read_csv("winequality.csv", delimiter=";")
 
-X = data.drop(columns=['quality', 'color'])
-y = data['quality']
+data["color"] = data["color"].astype("category")
+# Transform color column from "red/white" to 0 and 1
+data["color_cat"] = data["color"].cat.codes
 
-neighbors_settings = [10, 50, 100]
+# We are interested only in these attributes
+reduced_data = data[["residual_sugar", "chlorides", "density", "sulphates", "alcohol", "color_cat"]]
 
-for exp_num, k_neighbors in enumerate(neighbors_settings, start=1):
-    train_acc_values = []
-    test_acc_values = []
+# Normalize data
+# reduced_data["fixed_acidity"] = (reduced_data["fixed_acidity"] - reduced_data["fixed_acidity"].min()) / (reduced_data["fixed_acidity"].max() - reduced_data["fixed_acidity"].min())
+# reduced_data["volatile_acidity"] = (reduced_data["volatile_acidity"] - reduced_data["volatile_acidity"].min()) / (reduced_data["volatile_acidity"].max() - reduced_data["volatile_acidity"].min())
+# reduced_data["citric_acid"] = (reduced_data["citric_acid"] - reduced_data["citric_acid"].min()) / (reduced_data["citric_acid"].max() - reduced_data["citric_acid"].min())
+reduced_data["residual_sugar"] = (reduced_data["residual_sugar"] - reduced_data["residual_sugar"].min()) / (reduced_data["residual_sugar"].max() - reduced_data["residual_sugar"].min())
+reduced_data["chlorides"] = (reduced_data["chlorides"] - reduced_data["chlorides"].min()) / (reduced_data["chlorides"].max() - reduced_data["chlorides"].min())
+# reduced_data["free_sulfur_dioxide"] = (reduced_data["free_sulfur_dioxide"] - reduced_data["free_sulfur_dioxide"].min()) / (reduced_data["free_sulfur_dioxide"].max() - reduced_data["free_sulfur_dioxide"].min())
+# reduced_data["total_sulfur_dioxide"] = (reduced_data["total_sulfur_dioxide"] - reduced_data["total_sulfur_dioxide"].min()) / (reduced_data["total_sulfur_dioxide"].max() - reduced_data["total_sulfur_dioxide"].min())
+reduced_data["density"] = (reduced_data["density"] - reduced_data["density"].min()) / (reduced_data["density"].max() - reduced_data["density"].min())
+# reduced_data["ph"] = (reduced_data["ph"] - reduced_data["ph"].min()) / (reduced_data["ph"].max() - reduced_data["ph"].min())
+reduced_data["sulphates"] = (reduced_data["sulphates"] - reduced_data["sulphates"].min()) / (reduced_data["sulphates"].max() - reduced_data["sulphates"].min())
+reduced_data["alcohol"] = (reduced_data["alcohol"] - reduced_data["alcohol"].min()) / (reduced_data["alcohol"].max() - reduced_data["alcohol"].min())
 
-    for i in range(100):
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=(1 - 0.8), random_state=i)
+# Selecting features for clustering
+cluster_data = reduced_data[["alcohol", "residual_sugar", "chlorides", "sulphates"]]
 
-        model = KNeighborsClassifier(k_neighbors, metric='euclidean')
-        model.fit(X_train, y_train)
+# Selecting features for classification
+reduced_data = data[['color_cat'] + [col for col in data.columns if col != 'color' and col != 'color_cat']]
 
-        train_pred = model.predict(X_train)
-        test_pred = model.predict(X_test)
+# Define the target variable and split proportion
+izejas = reduced_data['color_cat']
+apmacibas_datu_proporcija = 0.7
 
-        train_acc = accuracy_score(y_train, train_pred)
-        test_acc = accuracy_score(y_test, test_pred)
+# Split the dataset into training and test sets
+X_apmacibas, X_testa, y_apmacibas, y_testa = train_test_split(
+    cluster_data, izejas, test_size=1.0 - apmacibas_datu_proporcija, random_state=42
+)
 
-        train_acc_values.append(train_acc)
-        test_acc_values.append(test_acc)
+# Calculate counts and percentages for training data
+apmacibas_datu_skaits = y_apmacibas.value_counts()
+apmacibas_datu_procenti = y_apmacibas.value_counts(normalize=True) * 100
 
-    new_df = pd.DataFrame({'Train Accuracy': train_acc_values, 'Test Accuracy': test_acc_values})
-    new_df.to_csv(f'experiment_{exp_num}_results.csv', index=False, sep=';')
+# Calculate counts and percentages for test data
+testa_datu_skaits = y_testa.value_counts()
+testa_datu_procenti = y_testa.value_counts(normalize=True) * 100
 
-    plt.figure(figsize=(8, 5))
-    plt.plot(range(1, 101), train_acc_values, label='Apmācības datu precizitāte', color='blue', linestyle='-')
-    plt.plot(range(1, 101), test_acc_values, label='Testa datu precizitāte', color='red', linestyle='-')
-    plt.title(f'Eksperiments {exp_num}: Precizitāte pret Iterācijas Numuru ar k_neighbors: {k_neighbors}')
-    plt.xlabel('Iterācijas numurs')
-    plt.ylabel('Precizitāte')
-    plt.legend()
-    plt.grid(True)
+# Print training data statistics
+print("Datu objektu skaits apmācības datu kopā:", len(y_apmacibas))
+print("Datu objektu % proporcija apmācības datu kopā:")
+for klase in apmacibas_datu_skaits.index:
+    print(f"Klase {klase}: {apmacibas_datu_skaits[klase]} ({apmacibas_datu_procenti[klase]:.2f}%)")
+
+# Print test data statistics
+print("\nDatu objektu skaits testa datu kopā:", len(y_testa))
+print("Datu objektu % proporcija testa datu kopā:")
+for klase in testa_datu_skaits.index:
+    print(f"Klase {klase}: {testa_datu_skaits[klase]} ({testa_datu_procenti[klase]:.2f}%)")
+
+# KNN Experiments
+neighbors_list = [5, 10, 50]
+for n_neighbors in neighbors_list:
+    print(f"\nExperiment with n_neighbors = {n_neighbors}")
+
+    knn_model = KNeighborsClassifier(n_neighbors=n_neighbors)
+    knn_model.fit(X_apmacibas, y_apmacibas)
+
+    y_pred_knn = knn_model.predict(X_testa)
+
+    print(classification_report(y_testa, y_pred_knn, zero_division=0))
+
+    cm = confusion_matrix(y_testa, y_pred_knn)
+
+    fig, ax = plt.subplots(figsize=(7, 4))
+    sns.heatmap(cm, annot=True, fmt='g', ax=ax)
+    ax.set_xlabel('Prognozētas klašu iezīmes')
+    ax.set_ylabel('Īstās klašu iezīmes')
+    ax.set_title(f'Kļūdu matrica (n_neighbors = {n_neighbors})')
+    ax.xaxis.set_ticklabels(data['color'].unique())
+    ax.yaxis.set_ticklabels(data['color'].unique())
     plt.show()
